@@ -24,7 +24,7 @@ html { scroll-behavior: smooth; }
 body {
   font-family: 'Georgia', 'Times New Roman', serif;
   background: var(--bg); color: var(--fg);
-  line-height: 1.75; font-size: 18px;
+  line-height: 1.75; font-size: 16px;
   display: flex; min-height: 100vh;
 }
 #toc {
@@ -87,7 +87,7 @@ hr { border: none; border-top: 1px solid var(--accent); margin: 2rem 0; opacity:
   text-align: center; font-style: italic; color: var(--accent2);
   border-radius: 8px;
 }
-.footnote { font-size: 0.85rem; color: var(--accent2); margin: 0.5rem 0; padding-left: 1.5rem; text-indent: -1.5rem; }
+.footnote { font-size: 0.85rem; color: var(--accent2); margin: 0.5rem 0; padding-left: 1.5rem; text-indent: -1.5rem; font-style: italic; }
 sup { font-size: 0.7em; }
 .title-page { text-align: center; margin: 4rem 0; }
 .title-page h1 { border: none; font-size: 2.5rem; }
@@ -111,6 +111,74 @@ sup { font-size: 0.7em; }
   main { padding: 2rem 1rem; }
   body { font-size: 16px; }
 }
+
+/* === PAGINATION === */
+@media print {
+  @page {
+    size: A4;
+    margin: 2.5cm 2cm;
+    @bottom-center {
+      content: counter(page);
+      font-family: Georgia, serif;
+      font-size: 10pt;
+      color: #666;
+    }
+  }
+  body { font-size: 12pt !important; }
+  #toc, #sidebar, .sidebar, .sidebar-overlay, .topbar, #toolbar,
+  #back-top, #progress, #page-indicator { display: none !important; }
+  main, .container, .content { 
+    padding: 0 !important; margin: 0 !important;
+    max-width: 100% !important;
+  }
+  h2 { page-break-before: always; }
+  h2:first-of-type { page-break-before: avoid; }
+  blockquote, figure, .equation, table { page-break-inside: avoid; }
+  p { orphans: 3; widows: 3; }
+}
+
+/* On-screen page indicator */
+#page-indicator {
+  position: fixed;
+  bottom: 1.2rem;
+  right: 1.2rem;
+  background: var(--bg, #1a1a2e);
+  border: 1px solid var(--border, #333);
+  color: var(--accent, #c9a84c);
+  font-family: Georgia, serif;
+  font-size: 0.75rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 4px;
+  opacity: 0;
+  transition: opacity 0.3s;
+  z-index: 900;
+  pointer-events: none;
+  user-select: none;
+}
+#page-indicator.visible { opacity: 0.6; }
+#page-indicator:hover { opacity: 0.9; }
+
+/* Show original page markers subtly */
+.page-marker {
+  display: block !important;
+  height: 0;
+  margin: 0;
+}
+.page-marker::before {
+  content: 'p. ' attr(data-page);
+  display: block;
+  font-size: 0.7em;
+  color: var(--accent2, #8b6914);
+  text-align: right;
+  margin: 0.8em 0 0.2em;
+  opacity: 0.3;
+}
+@media (max-width: 700px) {
+  .page-marker::before { display: none; }
+  #page-indicator { bottom: 0.5rem; right: 0.5rem; font-size: 0.7rem; }
+}
+/* === END PAGINATION === */
+
 </style>
 </head>
 <body>
@@ -3357,5 +3425,53 @@ document.addEventListener('keydown',e=>{
 // Close TOC on link click
 document.querySelectorAll('#toc a').forEach(a=>a.addEventListener('click',()=>document.getElementById('toc').classList.remove('open')));
 </script>
+
+<!-- Page indicator -->
+<div id="page-indicator"></div>
+<script>
+(function() {
+  var ind = document.getElementById('page-indicator');
+  if (!ind) return;
+  
+  // Estimate pages based on A4-equivalent content height (~900px per "page" at screen size)
+  var PAGE_HEIGHT = 900;
+  var scrollTimer;
+  var lastPage = -1;
+  
+  function updatePage() {
+    var scrollTop = window.scrollY || document.documentElement.scrollTop;
+    var docHeight = document.documentElement.scrollHeight - window.innerHeight;
+    var totalPages = Math.max(1, Math.ceil(document.documentElement.scrollHeight / PAGE_HEIGHT));
+    var currentPage = Math.min(totalPages, Math.floor(scrollTop / PAGE_HEIGHT) + 1);
+    
+    if (currentPage !== lastPage) {
+      ind.textContent = currentPage + ' / ' + totalPages;
+      lastPage = currentPage;
+    }
+    ind.classList.add('visible');
+    
+    clearTimeout(scrollTimer);
+    scrollTimer = setTimeout(function() {
+      ind.classList.remove('visible');
+    }, 2000);
+  }
+  
+  // Throttled scroll handler
+  var ticking = false;
+  window.addEventListener('scroll', function() {
+    if (!ticking) {
+      requestAnimationFrame(function() {
+        updatePage();
+        ticking = false;
+      });
+      ticking = true;
+    }
+  }, { passive: true });
+  
+  // Show briefly on load
+  setTimeout(updatePage, 500);
+})();
+</script>
+
 </body>
 </html>
